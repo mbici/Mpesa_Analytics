@@ -5,4 +5,3 @@ plotly
 matplotlib
 seaborn
 tabula-py
-openjdk-17-jre
