@@ -41,11 +41,11 @@ if 'Withdrawals' in st.session_state:
 
     spent_on =st.text_input('View transactions for :',value=None)
     if spent_on is not None:
-        st.write(f"You have spent a total of {withdrawals[withdrawals['Details'].str.contains(spent_on)].sum()['Withdrawn']} on {withdrawals[withdrawals['Details'].str.contains(spent_on)]['Details'].iloc[0]}")
-        st.write(withdrawals[withdrawals['Details'].str.contains(spent_on)])
+        st.write(f"You have spent a total of {withdrawals[withdrawals['Details'].str.contains(spent_on,na =False)]['Withdrawn'].sum()} on {withdrawals[withdrawals['Details'].str.contains(spent_on)]['Details'].iloc[0]}")
+        st.write(withdrawals[withdrawals['Details'].str.contains(spent_on,na=False)])
 
-    date_filter = st.text_input('View transactions for date :',value=None)
+    date_filter = st.date_input('View transactions for date :')
     if date_filter is not None:
         date = f"{date_filter}/{withdrawals['Completion Time'].iloc[0].month}/{withdrawals['Completion Time'].iloc[0].year}"
-        st.write(f"You spent a total of {withdrawals[withdrawals['Day of Month'] == int(date_filter)].sum()['Withdrawn']} on {date}")
+        st.write(f"You spent a total of {withdrawals[withdrawals['Day of Month'] == int(date_filter)]['Withdrawn'].sum()} on {date}")
         st.write(withdrawals[withdrawals['Day of Month'] == int(date_filter)])

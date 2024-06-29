@@ -28,5 +28,5 @@ st.plotly_chart(fig,use_container_width=True)
 received_from =st.text_input('View transactions for money received From :',value=None)
 if received_from is not None:
 
-    st.write(f"You have received a total of {received[received['Details'].str.contains(received_from)].sum()['Paid In']} on {received[received['Details'].str.contains(received_from)]['Details'].iloc[0]}")
-    st.write(received[received['Details'].str.contains(received_from)])
+    st.write(f"You have received a total of {received[received['Details'].str.contains(received_from,na=False)]['Paid In'].sum()} on {received[received['Details'].str.contains(received_from)]['Details'].iloc[0]}")
+    st.write(received[received['Details'].str.contains(received_from,na=False)])
