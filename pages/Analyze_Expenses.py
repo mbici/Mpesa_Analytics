@@ -16,6 +16,19 @@ if 'Withdrawals' in st.session_state:
     
     
     withdrawals = st.session_state['Withdrawals']
+    withdrawals['date'] = withdrawals['Completion Time'].dt.date
+
+    condition_to_remove = withdrawals['Details'].str.contains("MALI", case=False, na=False)
+    remove= st.checkbox("Remove some transactions?")
+    if remove:
+        removed_transactions = st.multiselect("Remove transactions from?",options=["MALI","LEONARD"])
+
+        pattern = '|'.join(removed_transactions)
+
+        condition_to_remove = withdrawals['Details'].str.contains(pattern, case=False, na=False)
+        withdrawals = withdrawals[~condition_to_remove]
+
+
 
     daily_expense= pd.DataFrame(withdrawals.groupby('Day of Month')['Withdrawn'].sum()).reset_index()
 
@@ -38,14 +51,18 @@ if 'Withdrawals' in st.session_state:
     # Display the chart in Streamlit
     st.plotly_chart(fig,use_container_width=True)
 
+    pie_fig = px.pie(details_data,values='Withdrawn',names="Details")
+    pie_fig.update_layout(width=900, height=500,showlegend=False)
+
+    st.plotly_chart(pie_fig,use_container_width=True)
+
 
     spent_on =st.text_input('View transactions for :',value=None)
     if spent_on is not None:
-        st.write(f"You have spent a total of {withdrawals[withdrawals['Details'].str.contains(spent_on,na =False)]['Withdrawn'].sum()} on {withdrawals[withdrawals['Details'].str.contains(spent_on)]['Details'].iloc[0]}")
-        st.write(withdrawals[withdrawals['Details'].str.contains(spent_on,na=False)])
+        st.write(f"You have spent a total of {withdrawals[withdrawals['Details'].str.contains(spent_on,na =False,case=False)]['Withdrawn'].sum()} on {withdrawals[withdrawals['Details'].str.contains(spent_on,na=False,case=False)]['Details'].iloc[0]}")
+        st.write(withdrawals[withdrawals['Details'].str.contains(spent_on,na=False,case=False)])
 
     date_filter = st.date_input('View transactions for date :')
     if date_filter is not None:
-        date = f"{date_filter}/{withdrawals['Completion Time'].iloc[0].month}/{withdrawals['Completion Time'].iloc[0].year}"
-        st.write(f"You spent a total of {withdrawals[withdrawals['Day of Month'] == int(date_filter)]['Withdrawn'].sum()} on {date}")
-        st.write(withdrawals[withdrawals['Day of Month'] == int(date_filter)])
+        st.write(f"You spent a total of {withdrawals[withdrawals['date'] == date_filter]['Withdrawn'].sum()} on {date_filter}")
+        st.write(withdrawals[withdrawals['date'] == date_filter])
