@@ -44,7 +44,7 @@ try:
     # Remove specific transactions
     remove = st.sidebar.checkbox("Remove specific transactions")
     if remove:
-        available_options = ["MALI", "LEONARD"]
+        available_options = ["MALI", "LEONARD","NCBA"]
         # Find available patterns in the data
         for pattern in available_options:
             if withdrawals['Details'].str.contains(pattern, case=False, na=False).any():
