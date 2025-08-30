@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
+from datetime import datetime, date
 
 # Configure page
 st.set_page_config(
@@ -12,6 +13,20 @@ st.set_page_config(
 
 st.title("💸 Expense Analysis")
 st.markdown("Analyze your spending patterns and identify your top expense categories.")
+
+# Initialize session state variables for filters
+def init_session_state():
+    """Initialize session state variables for persistent filters"""
+    if 'expense_search_term' not in st.session_state:
+        st.session_state.expense_search_term = ""
+    if 'expense_remove_transactions' not in st.session_state:
+        st.session_state.expense_remove_transactions = False
+    if 'expense_removed_list' not in st.session_state:
+        st.session_state.expense_removed_list = []
+    if 'expense_date_filter' not in st.session_state:
+        st.session_state.expense_date_filter = None
+
+init_session_state()
 
 # Function to format values for autopct
 def func(pct, allvalues):
@@ -38,11 +53,17 @@ try:
         st.error("❌ Date information missing from transaction data.")
         st.stop()
 
-    # Transaction filtering options
+    # Transaction filtering options (with session state)
     st.sidebar.header("🔧 Filter Options")
     
     # Remove specific transactions
-    remove = st.sidebar.checkbox("Remove specific transactions")
+    remove = st.sidebar.checkbox(
+        "Remove specific transactions", 
+        value=st.session_state.expense_remove_transactions,
+        key="remove_transactions_checkbox"
+    )
+    st.session_state.expense_remove_transactions = remove
+    
     if remove:
         available_options = ["MALI", "LEONARD","NCBA"]
         # Find available patterns in the data
@@ -53,8 +74,11 @@ try:
         removed_transactions = st.sidebar.multiselect(
             "Select transaction types to remove:",
             options=available_options,
-            help="Remove specific transaction types from analysis"
+            default=st.session_state.expense_removed_list,
+            help="Remove specific transaction types from analysis",
+            key="removed_transactions_multiselect"
         )
+        st.session_state.expense_removed_list = removed_transactions
 
         if removed_transactions:
             pattern = '|'.join(removed_transactions)
@@ -142,13 +166,20 @@ try:
     with col1:
         spent_on = st.text_input(
             'Search transactions containing:', 
-            value="",
-            help="Enter keywords to search in transaction details"
+            value=st.session_state.expense_search_term,
+            help="Enter keywords to search in transaction details",
+            key="expense_search_input"
         )
+        
+        # Update session state when input changes
+        if spent_on != st.session_state.expense_search_term:
+            st.session_state.expense_search_term = spent_on
         
         if spent_on and len(spent_on.strip()) > 0:
             try:
-                matching_transactions = withdrawals[withdrawals['Details'].str.contains(spent_on, na=False, case=False)]
+                # Use original data for search (not filtered data)
+                original_withdrawals = st.session_state['Withdrawals'].copy()
+                matching_transactions = original_withdrawals[original_withdrawals['Details'].str.contains(spent_on, na=False, case=False)]
                 
                 if not matching_transactions.empty:
                     total_spent = matching_transactions['Withdrawn'].sum()
@@ -161,21 +192,35 @@ try:
                 st.error(f"Error searching transactions: {str(e)}")
     
     with col2:
+        # Get default date from session state or use today's date
+        default_date = st.session_state.expense_date_filter if st.session_state.expense_date_filter else date.today()
+        
         date_filter = st.date_input(
             'View transactions for specific date:',
-            help="Select a date to view all transactions for that day"
+            value=default_date,
+            help="Select a date to view all transactions for that day",
+            key="expense_date_input"
         )
+        
+        # Update session state
+        st.session_state.expense_date_filter = date_filter
         
         if date_filter is not None:
             try:
-                date_transactions = withdrawals[withdrawals['date'] == date_filter]
-                
-                if not date_transactions.empty:
-                    daily_total = date_transactions['Withdrawn'].sum()
-                    st.success(f"💸 Total spent on {date_filter}: **Ksh {daily_total:,.0f}**")
-                    st.dataframe(date_transactions, use_container_width=True, hide_index=True)
+                # Use original data for date filtering
+                original_withdrawals = st.session_state['Withdrawals'].copy()
+                if 'Completion Time' in original_withdrawals.columns:
+                    original_withdrawals['date'] = original_withdrawals['Completion Time'].dt.date
+                    date_transactions = original_withdrawals[original_withdrawals['date'] == date_filter]
+                    
+                    if not date_transactions.empty:
+                        daily_total = date_transactions['Withdrawn'].sum()
+                        st.success(f"💸 Total spent on {date_filter}: **Ksh {daily_total:,.0f}**")
+                        st.dataframe(date_transactions, use_container_width=True, hide_index=True)
+                    else:
+                        st.info(f"No transactions found for {date_filter}")
                 else:
-                    st.info(f"No transactions found for {date_filter}")
+                    st.warning("Date information not available for filtering.")
                     
             except Exception as e:
                 st.error(f"Error filtering by date: {str(e)}")
