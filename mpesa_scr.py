@@ -53,6 +53,23 @@ def check_password():
 if not check_password():
     st.stop()
 
+def custom_to_float(value):
+    """
+    Converts a given value to a float.
+
+    Args:
+    value: The value to be converted to a float.
+
+    Returns:
+    float: The converted float value if successful, otherwise returns the original value.
+    """
+    if isinstance(value, str):
+        try:
+            return float(value.replace(',', ''))
+        except ValueError:
+            return value
+    return value
+
 # Main Streamlit app starts here
 st.title("🏦 M-Pesa Analytics Dashboard")
 st.markdown("Welcome to your personal M-Pesa transaction analyzer! Upload your statement to get detailed insights about your spending patterns and income sources.")
@@ -223,19 +240,4 @@ else:
     st.info("👆 Please upload your M-Pesa PDF statement to begin analysis.")
 
 
-def custom_to_float(value):
-    """
-    Converts a given value to a float.
 
-    Args:
-    value: The value to be converted to a float.
-
-    Returns:
-    float: The converted float value if successful, otherwise returns the original value.
-    """
-    if isinstance(value, str):
-        try:
-            return float(value.replace(',', ''))
-        except ValueError:
-            return value
-    return value
