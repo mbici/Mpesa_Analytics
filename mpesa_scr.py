@@ -145,6 +145,7 @@ if uploaded_file is not None:
                     
                     if 'Completion Time' in resulting_dataframe.columns:
                         resulting_dataframe['Completion Time'] = pd.to_datetime(resulting_dataframe['Completion Time'], errors='coerce')
+                        resulting_dataframe = resulting_dataframe.dropna(subset=['Completion Time'])
                         resulting_dataframe['Month'] = resulting_dataframe['Completion Time'].dt.month
                     else:
                         st.error("❌ Required 'Completion Time' column not found in the statement.")
