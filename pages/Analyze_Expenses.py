@@ -49,6 +49,8 @@ try:
     # Add date column safely
     if 'Completion Time' in withdrawals.columns:
         withdrawals['date'] = withdrawals['Completion Time'].dt.date
+        withdrawals['weekday'] = withdrawals['Completion Time'].dt.day_name()
+        withdrawals['year_month'] = withdrawals['Completion Time'].dt.to_period('M').astype(str)
     else:
         st.error("❌ Date information missing from transaction data.")
         st.stop()
@@ -114,49 +116,87 @@ try:
             value=f"{num_transactions:,}"
         )
 
-    # Daily expense chart
-    st.subheader("📈 Daily Spending Pattern")
-    if 'Day of Month' in withdrawals.columns:
-        daily_expense = pd.DataFrame(withdrawals.groupby('Day of Month')['Withdrawn'].sum()).reset_index()
-        
-        if not daily_expense.empty:
-            st.line_chart(data=daily_expense, x='Day of Month', y='Withdrawn', use_container_width=True)
+    analysis_tabs = st.tabs(["Overview", "Weekday View"])
+
+    with analysis_tabs[0]:
+        st.subheader("📈 Daily Spending Pattern")
+        if 'Day of Month' in withdrawals.columns:
+            daily_expense = pd.DataFrame(withdrawals.groupby('Day of Month')['Withdrawn'].sum()).reset_index()
+            
+            if not daily_expense.empty:
+                st.line_chart(data=daily_expense, x='Day of Month', y='Withdrawn', use_container_width=True)
+            else:
+                st.info("No daily expense data available.")
         else:
-            st.info("No daily expense data available.")
+            st.info("Day of month details are not available for this statement.")
     
-    # Top expense categories
-    st.subheader("🎯 Top Expense Categories")
-    details_data = pd.DataFrame(withdrawals.groupby('Details')['Withdrawn'].sum().sort_values(ascending=False)).iloc[0:15].reset_index()
+        st.subheader("🎯 Top Expense Categories")
+        details_data = pd.DataFrame(withdrawals.groupby('Details')['Withdrawn'].sum().sort_values(ascending=False)).iloc[0:15].reset_index()
 
-    if not details_data.empty:
-        details_data = details_data.sort_values(by='Withdrawn', ascending=False)
+        if not details_data.empty:
+            details_data = details_data.sort_values(by='Withdrawn', ascending=False)
 
-        # Bar chart
-        fig = px.bar(
-            details_data, 
-            x='Details', 
-            y='Withdrawn', 
-            title='Top 15 Expense Categories',
-            labels={'Withdrawn': 'Amount Spent (Ksh)', 'Details': 'Expense Categories'},
-            color='Withdrawn',
-            color_continuous_scale='Reds'
-        )
+            # Bar chart
+            fig = px.bar(
+                details_data, 
+                x='Details', 
+                y='Withdrawn', 
+                title='Top 15 Expense Categories',
+                labels={'Withdrawn': 'Amount Spent (Ksh)', 'Details': 'Expense Categories'},
+                color='Withdrawn',
+                color_continuous_scale='Reds'
+            )
 
-        fig.update_layout(width=900, height=500, showlegend=False)
-        fig.update_xaxes(showticklabels=False)
-        st.plotly_chart(fig, use_container_width=True)
+            fig.update_layout(width=900, height=500, showlegend=False)
+            fig.update_xaxes(showticklabels=False)
+            st.plotly_chart(fig, use_container_width=True)
 
-        # Pie chart
-        pie_fig = px.pie(
-            details_data, 
-            values='Withdrawn', 
-            names="Details",
-            title="Expense Distribution"
-        )
-        pie_fig.update_layout(width=900, height=500, showlegend=False)
-        st.plotly_chart(pie_fig, use_container_width=True)
-    else:
-        st.info("No expense categories to display.")
+            # Pie chart
+            pie_fig = px.pie(
+                details_data, 
+                values='Withdrawn', 
+                names="Details",
+                title="Expense Distribution"
+            )
+            pie_fig.update_layout(width=900, height=500, showlegend=False)
+            st.plotly_chart(pie_fig, use_container_width=True)
+        else:
+            st.info("No expense categories to display.")
+
+    with analysis_tabs[1]:
+        st.subheader("📅 Weekday Expense Analysis")
+        week_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        selected_weekday = st.selectbox("Select a weekday:", week_days, index=0)
+
+        month_options = sorted(withdrawals['year_month'].dropna().unique().tolist())
+        if month_options:
+            default_index = len(month_options) - 1
+            selected_month = st.selectbox("Select a month:", month_options, index=default_index)
+            month_filtered = withdrawals[withdrawals['year_month'] == selected_month]
+
+            weekday_transactions = month_filtered[month_filtered['weekday'] == selected_weekday]
+
+            if not weekday_transactions.empty:
+                total_weekday = weekday_transactions['Withdrawn'].sum()
+                avg_weekday = weekday_transactions['Withdrawn'].mean()
+                count_weekday = len(weekday_transactions)
+                st.metric(label=f"Total {selected_weekday} Spending", value=f"Ksh {total_weekday:,.0f}")
+                st.metric(label=f"Average {selected_weekday} Transaction", value=f"Ksh {avg_weekday:,.0f}")
+                st.metric(label=f"Total {selected_weekday} Transactions", value=f"{count_weekday:,}")
+
+                weekday_by_date = (weekday_transactions.groupby('date')['Withdrawn'].sum().reset_index().sort_values('date'))
+                st.bar_chart(data=weekday_by_date, x='date', y='Withdrawn', use_container_width=True)
+
+                st.subheader(f"Transactions on {selected_weekday}s in {selected_month}")
+                st.dataframe(
+                    weekday_transactions[['date', 'Details', 'Withdrawn']].sort_values(by='date'),
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.info(f"No {selected_weekday} transactions found for {selected_month}.")
+        else:
+            st.info("No month information available for weekday analysis.")
 
     # Search and filter transactions
     st.header("🔍 Transaction Search & Filter")
